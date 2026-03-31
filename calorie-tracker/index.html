@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalori Takip - Görselden Analiz</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🥗</span>
+        <span class="logo-text">KaloriLens</span>
+      </div>
+      <nav class="header-nav">
+        <button class="nav-btn active" data-tab="analyze">Analiz Et</button>
+        <button class="nav-btn" data-tab="tracker">Takip Paneli</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ============================================================
+         TAB 1: ANALIZ
+    ============================================================ -->
+    <section class="tab-section active" id="tab-analyze">
+
+      <!-- Upload Card -->
+      <div class="card upload-card">
+        <h2 class="card-title">Yemeğini Fotoğrafla</h2>
+        <p class="card-subtitle">Kamerandan çek veya galerinden yükle, yapay zeka anında analiz etsin.</p>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-placeholder" id="uploadPlaceholder">
+            <div class="upload-icon">📷</div>
+            <p class="upload-hint">Görsel yüklemek için tıkla</p>
+            <p class="upload-hint-sub">veya sürükle & bırak</p>
+          </div>
+          <img id="previewImg" class="preview-image hidden" alt="Yüklenen görsel önizlemesi" />
+        </div>
+
+        <div class="upload-actions">
+          <button class="btn btn-secondary" id="btnCamera">
+            <span class="btn-icon">📸</span> Kamera
+          </button>
+          <button class="btn btn-secondary" id="btnGallery">
+            <span class="btn-icon">🖼️</span> Galeri
+          </button>
+          <button class="btn btn-primary" id="btnAnalyze" disabled>
+            <span class="btn-icon">🔍</span> Analiz Et
+          </button>
+        </div>
+
+        <!-- Hidden inputs -->
+        <input type="file" id="fileInputGallery" accept="image/*" class="hidden" />
+        <input type="file" id="fileInputCamera" accept="image/*" capture="environment" class="hidden" />
+      </div>
+
+      <!-- API Key Config Card -->
+      <div class="card api-card" id="apiConfigCard">
+        <div class="api-card-header" id="apiCardToggle">
+          <span>⚙️ API Ayarları</span>
+          <span class="toggle-icon">▼</span>
+        </div>
+        <div class="api-card-body hidden" id="apiCardBody">
+          <p class="api-info">
+            Bu uygulama OpenAI GPT-4o Vision API kullanır. Kendi API anahtarınızı girin
+            (tarayıcınızda localStorage'da saklanır, sunucuya gönderilmez).
+          </p>
+          <div class="form-group">
+            <label for="apiKeyInput">OpenAI API Anahtarı</label>
+            <div class="input-row">
+              <input type="password" id="apiKeyInput" placeholder="sk-..." class="form-input" />
+              <button class="btn btn-sm btn-secondary" id="btnSaveKey">Kaydet</button>
+            </div>
+          </div>
+          <p class="api-note">
+            API anahtarı yoksa, uygulama demo modda çalışır ve örnek veriler gösterir.
+          </p>
+        </div>
+      </div>
+
+      <!-- Loading Spinner -->
+      <div class="loading-card hidden" id="loadingCard">
+        <div class="spinner"></div>
+        <p class="loading-text">Yapay zeka analiz ediyor<span class="dots">...</span></p>
+      </div>
+
+      <!-- Results Card -->
+      <div class="card results-card hidden" id="resultsCard">
+        <div class="results-header">
+          <h2 class="card-title">Analiz Sonucu</h2>
+          <span class="confidence-badge" id="confidenceBadge">Yüksek Güven</span>
+        </div>
+
+        <p class="detected-food" id="detectedFood">Tespit edilen yemek</p>
+
+        <!-- Calorie Big Number -->
+        <div class="calorie-hero">
+          <span class="calorie-number" id="totalCalories">0</span>
+          <span class="calorie-unit">kcal</span>
+        </div>
+
+        <!-- Macro Table -->
+        <div class="macro-grid">
+          <div class="macro-item protein">
+            <div class="macro-label">Protein</div>
+            <div class="macro-value" id="macroProtein">0g</div>
+            <div class="macro-bar"><div class="macro-fill" id="barProtein"></div></div>
+          </div>
+          <div class="macro-item carbs">
+            <div class="macro-label">Karbonhidrat</div>
+            <div class="macro-value" id="macroCarbs">0g</div>
+            <div class="macro-bar"><div class="macro-fill" id="barCarbs"></div></div>
+          </div>
+          <div class="macro-item fat">
+            <div class="macro-label">Yağ</div>
+            <div class="macro-value" id="macroFat">0g</div>
+            <div class="macro-bar"><div class="macro-fill" id="barFat"></div></div>
+          </div>
+        </div>
+
+        <!-- Detail Table -->
+        <table class="nutrition-table">
+          <thead>
+            <tr>
+              <th>Besin Değeri</th>
+              <th>Miktar</th>
+              <th>% Günlük Değer*</th>
+            </tr>
+          </thead>
+          <tbody id="nutritionTableBody">
+          </tbody>
+        </table>
+        <p class="table-note">* Günlük değer, hedeflenen kalori miktarına göre hesaplanmıştır.</p>
+
+        <div class="results-actions">
+          <button class="btn btn-primary" id="btnAddToTracker">
+            <span class="btn-icon">➕</span> Takibe Ekle
+          </button>
+          <button class="btn btn-secondary" id="btnReset">
+            <span class="btn-icon">🔄</span> Yeni Analiz
+          </button>
+        </div>
+      </div>
+
+      <!-- Error Card -->
+      <div class="card error-card hidden" id="errorCard">
+        <div class="error-icon">⚠️</div>
+        <h3 id="errorTitle">Bir hata oluştu</h3>
+        <p id="errorMessage">Lütfen tekrar deneyin.</p>
+        <button class="btn btn-secondary" id="btnRetry">Tekrar Dene</button>
+      </div>
+
+    </section>
+
+    <!-- ============================================================
+         TAB 2: TAKİP PANELİ
+    ============================================================ -->
+    <section class="tab-section hidden" id="tab-tracker">
+
+      <!-- Goals Card -->
+      <div class="card goals-card">
+        <h2 class="card-title">Günlük Hedeflerim</h2>
+        <div class="goals-form">
+          <div class="goal-input-group">
+            <label>Kalori (kcal)</label>
+            <input type="number" id="goalCalories" class="goal-input" placeholder="2000" min="500" max="10000" />
+          </div>
+          <div class="goal-input-group">
+            <label>Protein (g)</label>
+            <input type="number" id="goalProtein" class="goal-input" placeholder="150" min="0" max="500" />
+          </div>
+          <div class="goal-input-group">
+            <label>Karbonhidrat (g)</label>
+            <input type="number" id="goalCarbs" class="goal-input" placeholder="250" min="0" max="1000" />
+          </div>
+          <div class="goal-input-group">
+            <label>Yağ (g)</label>
+            <input type="number" id="goalFat" class="goal-input" placeholder="65" min="0" max="500" />
+          </div>
+        </div>
+        <button class="btn btn-primary full-width" id="btnSaveGoals">
+          <span class="btn-icon">💾</span> Hedefleri Kaydet
+        </button>
+      </div>
+
+      <!-- Today's Summary -->
+      <div class="card summary-card">
+        <div class="summary-header">
+          <h2 class="card-title">Bugünkü Özet</h2>
+          <span class="date-label" id="todayDate"></span>
+        </div>
+
+        <!-- Calorie Ring -->
+        <div class="ring-container">
+          <svg class="ring-svg" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" />
+            <circle class="ring-progress" id="calorieRing" cx="60" cy="60" r="52"
+              stroke-dasharray="326.7"
+              stroke-dashoffset="326.7" />
+          </svg>
+          <div class="ring-label">
+            <div class="ring-consumed" id="ringConsumed">0</div>
+            <div class="ring-unit">kcal</div>
+            <div class="ring-remaining" id="ringRemaining">Hedef yok</div>
+          </div>
+        </div>
+
+        <!-- Macro Progress Bars -->
+        <div class="macro-progress-section">
+          <div class="macro-progress-item">
+            <div class="mp-labels">
+              <span class="mp-name">Protein</span>
+              <span class="mp-values"><span id="consumedProtein">0</span>g / <span id="goalProteinDisplay">--</span>g</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill protein-fill" id="progressProtein"></div>
+            </div>
+          </div>
+          <div class="macro-progress-item">
+            <div class="mp-labels">
+              <span class="mp-name">Karbonhidrat</span>
+              <span class="mp-values"><span id="consumedCarbs">0</span>g / <span id="goalCarbsDisplay">--</span>g</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill carbs-fill" id="progressCarbs"></div>
+            </div>
+          </div>
+          <div class="macro-progress-item">
+            <div class="mp-labels">
+              <span class="mp-name">Yağ</span>
+              <span class="mp-values"><span id="consumedFat">0</span>g / <span id="goalFatDisplay">--</span>g</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill fat-fill" id="progressFat"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Food Log -->
+      <div class="card log-card">
+        <div class="log-header">
+          <h2 class="card-title">Günlük Öğünler</h2>
+          <button class="btn btn-sm btn-danger" id="btnClearLog">Temizle</button>
+        </div>
+        <div id="foodLogList" class="food-log-list">
+          <p class="empty-log" id="emptyLogMsg">Henüz öğün eklenmedi. Analiz sekmesinden yemek ekleyebilirsin.</p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast hidden" id="toast">
+    <span id="toastMessage"></span>
+  </div>
+
+  <!-- Camera Modal -->
+  <div class="modal hidden" id="cameraModal">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Fotoğraf Çek</h3>
+        <button class="modal-close" id="btnCloseCamera">✕</button>
+      </div>
+      <video id="cameraFeed" autoplay playsinline class="camera-feed"></video>
+      <canvas id="cameraCanvas" class="hidden"></canvas>
+      <div class="modal-actions">
+        <button class="btn btn-primary full-width" id="btnCapture">📸 Fotoğraf Çek</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
