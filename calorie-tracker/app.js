@@ -277,11 +277,11 @@ DOM.btnCapture.addEventListener('click', () => {
   DOM.btnAnalyze.disabled = false;
   closeCameraModal();
 });
-
-
 /* ============================================================
    ANALİZ BUTONU (MobileNet)
 ============================================================ */
+DOM.btnAnalyze.addEventListener('click', analyzeImage);
+
 let mobilenetModel = null;
 async function loadMobileNet() {
   if (mobilenetModel) return;
@@ -573,10 +573,12 @@ async function fetchCatalogFromAPI(query = 'pizza') {
   DOM.catalogError.classList.add('hidden');
 
   try {
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=40`;
+    const rawUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=40`;
+    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(rawUrl)}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Network error');
-    const data = await res.json();
+    const wrapper = await res.json();
+    const data = JSON.parse(wrapper.contents);
     
     const products = data.products || [];
     state.catalog = products.map(p => {
