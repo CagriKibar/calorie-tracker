@@ -303,217 +303,89 @@ async function analyzeImage() {
 }
 
 /* ============================================================
-   VISION API ENTEGRASYONU
-   ─────────────────────────────────────────────────────────────
-   Gerçek API bağlantısı için:
-   1. OpenAI hesabı oluşturun: https://platform.openai.com
-   2. API anahtarı alın ve uygulamaya "API Ayarları" ile girin
-   3. Aşağıdaki fonksiyon GPT-4o vision modelini kullanır
-
-   Alternatif API'ler:
-   - Google Gemini Vision: model değiştirerek entegre edebilirsiniz
-   - Anthropic Claude Vision: aynı base64 formatı geçerlidir
+   ANALİZ BUTONU (MobileNet)
 ============================================================ */
-async function callVisionAPI(base64Image) {
-  const apiKey = getApiKey();
-
-  // Demo mod: API anahtarı yoksa simüle edilmiş veri döndür
-  if (!apiKey) {
-    return simulateAnalysis();
-  }
-
-  // Base64'ten veri URL'ini ayır (data:image/jpeg;base64,... -> ...)
-  const base64Data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
-  const mimeType = base64Image.startsWith('data:') ? base64Image.split(';')[0].split(':')[1] : 'image/jpeg';
-
-  const prompt = `Bu görseldeki yemeği analiz et ve YALNIZCA aşağıdaki JSON formatında yanıt ver. Başka açıklama ekleme.
-
-{
-  "foodName": "Yemeğin Türkçe adı",
-  "confidence": "Yüksek/Orta/Düşük",
-  "calories": <sayı>,
-  "protein": <gram sayısı>,
-  "carbs": <gram sayısı>,
-  "fat": <gram sayısı>,
-  "fiber": <gram sayısı>,
-  "sugar": <gram sayısı>,
-  "sodium": <mg sayısı>,
-  "portionSize": "Porsiyon açıklaması (örn: 1 tabak, ~250g)",
-  "icon": "Tek emoji"
-}
-
-Eğer görsel yemek içermiyorsa: {"error": "Görsel bir yemek içermiyor."}`;
-
-  // ── OpenAI GPT-4o Vision API ──────────────────────────────
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      max_tokens: 500,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mimeType};base64,${base64Data}`,
-                detail: 'low', // 'low' = daha hızlı & ucuz; 'high' = daha detaylı
-              },
-            },
-            { type: 'text', text: prompt },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    const msg = errData?.error?.message || `API hatası: ${response.status}`;
-    throw new Error(msg);
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim();
-
-  if (!content) throw new Error('API boş yanıt döndürdü.');
-
-  // JSON çıkar (bazen markdown code block içinde gelebilir)
-  const jsonStr = content.replace(/```(?:json)?/g, '').trim();
-  let parsed;
+let mobilenetModel = null;
+async function loadMobileNet() {
+  if (mobilenetModel) return;
   try {
-    parsed = JSON.parse(jsonStr);
-  } catch (e) {
-    throw new Error('API yanıtı geçerli JSON değil. Tekrar deneyin.');
+    mobilenetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+    console.log("MobileNet yüklendi!");
+  } catch (err) {
+    console.error("MobileNet hata: ", err);
+  }
+}
+
+async function analyzeImage() {
+  if (!state.currentImage) return;
+
+  hideResultCards();
+  DOM.loadingCard.classList.remove('hidden');
+  DOM.btnAnalyze.disabled = true;
+
+  try {
+    if (!mobilenetModel) {
+      await loadMobileNet();
+    }
+    if (!mobilenetModel) throw new Error("Yapay zeka modeli yüklenemedi.");
+
+    const imgEl = new Image();
+    imgEl.src = state.currentImage;
+    await new Promise((resolve, reject) => {
+      imgEl.onload = resolve;
+      imgEl.onerror = reject;
+    });
+
+    const predictions = await mobilenetModel.classify(imgEl);
+    showResults(predictions);
+  } catch (err) {
+    showError('Analiz başarısız', err.message || 'Lütfen tekrar deneyin.');
+  } finally {
+    DOM.loadingCard.classList.add('hidden');
+    DOM.btnAnalyze.disabled = false;
+  }
+}
+
+function showResults(predictions) {
+  if (!predictions || predictions.length === 0) {
+    showError('Tahmin Hatası', 'Görselde herhangi bir nesne algılanamadı.');
+    return;
   }
 
-  if (parsed.error) throw new Error(parsed.error);
+  const topPrediction = predictions[0];
+  const isHighConfidence = topPrediction.probability > 0.85;
 
-  return parsed;
-}
+  if (isHighConfidence) {
+    const searchTerm = topPrediction.className.split(',')[0];
+    showToast(`%${Math.round(topPrediction.probability * 100)} güvenle algılandı: ${searchTerm}`);
+    if (DOM.searchInput) DOM.searchInput.value = searchTerm;
+    fetchCatalogFromAPI(searchTerm);
+    switchTab('catalog');
+  } else {
+    DOM.confidenceBadge.textContent = 'Tahmin (%' + Math.round(topPrediction.probability * 100) + ' güven)';
+    DOM.confidenceBadge.className = 'confidence-badge medium';
+    
+    // Stabil predictionButtons
+    DOM.predictionButtons.innerHTML = '';
+    predictions.slice(0, 5).forEach(pred => {
+      const term = pred.className.split(',')[0];
+      const prob = Math.round(pred.probability * 100);
+      
+      const btn = document.createElement('button');
+      btn.className = 'prediction-btn';
+      btn.innerHTML = `<span>${term}</span> <span class="prob">%${prob}</span>`;
+      
+      btn.addEventListener('click', () => {
+        if (DOM.searchInput) DOM.searchInput.value = term;
+        fetchCatalogFromAPI(term);
+        switchTab('catalog');
+      });
+      
+      DOM.predictionButtons.appendChild(btn);
+    });
 
-/* ─── DEMO MOD: Gerçekçi simüle edilmiş veri ────────────────── */
-function simulateAnalysis() {
-  const demoFoods = [
-    {
-      foodName: 'Makarna (Bolonez Soslu)',
-      confidence: 'Yüksek',
-      calories: 520,
-      protein: 24,
-      carbs: 68,
-      fat: 16,
-      fiber: 4,
-      sugar: 7,
-      sodium: 640,
-      portionSize: '1 tabak (~300g)',
-      icon: '🍝',
-    },
-    {
-      foodName: 'Izgara Tavuk Göğsü + Pirinç Pilavı',
-      confidence: 'Yüksek',
-      calories: 445,
-      protein: 38,
-      carbs: 52,
-      fat: 8,
-      fiber: 1,
-      sugar: 0,
-      sodium: 390,
-      portionSize: '1 porsiyon (~280g)',
-      icon: '🍗',
-    },
-    {
-      foodName: 'Sebzeli Omlet',
-      confidence: 'Orta',
-      calories: 295,
-      protein: 18,
-      carbs: 8,
-      fat: 20,
-      fiber: 2,
-      sugar: 3,
-      sodium: 480,
-      portionSize: '2 yumurtalı (~200g)',
-      icon: '🍳',
-    },
-    {
-      foodName: 'Mercimek Çorbası',
-      confidence: 'Yüksek',
-      calories: 190,
-      protein: 12,
-      carbs: 28,
-      fat: 4,
-      fiber: 8,
-      sugar: 2,
-      sodium: 560,
-      portionSize: '1 kase (~250ml)',
-      icon: '🥣',
-    },
-  ];
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const random = demoFoods[Math.floor(Math.random() * demoFoods.length)];
-      resolve(random);
-    }, 1800); // Gerçekçi bekleme süresi
-  });
-}
-
-/* ============================================================
-   SONUÇ GÖSTERİMİ
-============================================================ */
-function showResults(data) {
-  DOM.detectedFood.textContent = `${data.icon || '🍽️'}  ${data.foodName} — ${data.portionSize}`;
-  DOM.totalCalories.textContent = data.calories;
-  DOM.confidenceBadge.textContent = `${data.confidence} Güven`;
-  DOM.confidenceBadge.className = 'confidence-badge';
-  DOM.confidenceBadge.classList.add(
-    data.confidence === 'Yüksek' ? 'high' : data.confidence === 'Orta' ? 'medium' : 'low',
-  );
-
-  // Macro değerleri
-  DOM.macroProtein.textContent = `${data.protein}g`;
-  DOM.macroCarbs.textContent = `${data.carbs}g`;
-  DOM.macroFat.textContent = `${data.fat}g`;
-
-  // Macro bar doluluk oranları (kendi içindeki oran)
-  const total = data.protein * 4 + data.carbs * 4 + data.fat * 9;
-  requestAnimationFrame(() => {
-    DOM.barProtein.style.width = total ? `${Math.round((data.protein * 4 / total) * 100)}%` : '0%';
-    DOM.barCarbs.style.width = total ? `${Math.round((data.carbs * 4 / total) * 100)}%` : '0%';
-    DOM.barFat.style.width = total ? `${Math.round((data.fat * 9 / total) * 100)}%` : '0%';
-  });
-
-  // Besin tablosu
-  const rows = [
-    { name: 'Kalori', value: `${data.calories} kcal`, dv: pct(data.calories, state.goals.calories) },
-    { name: 'Protein', value: `${data.protein} g`, dv: pct(data.protein, state.goals.protein) },
-    { name: 'Karbonhidrat', value: `${data.carbs} g`, dv: pct(data.carbs, state.goals.carbs) },
-    { name: 'Yağ', value: `${data.fat} g`, dv: pct(data.fat, state.goals.fat) },
-    { name: 'Lif', value: `${data.fiber ?? '—'} g`, dv: pct(data.fiber, 25) },
-    { name: 'Şeker', value: `${data.sugar ?? '—'} g`, dv: '—' },
-    { name: 'Sodyum', value: `${data.sodium ?? '—'} mg`, dv: pct(data.sodium, 2300) },
-  ];
-
-  DOM.nutritionTableBody.innerHTML = rows
-    .map(
-      (r) => `<tr>
-        <td>${r.name}</td>
-        <td>${r.value}</td>
-        <td>${r.dv}</td>
-      </tr>`,
-    )
-    .join('');
-
-  DOM.resultsCard.classList.remove('hidden');
-}
-
-function pct(value, total) {
-  if (!value || !total) return '—';
-  return `%${Math.round((value / total) * 100)}`;
+    DOM.resultsCard.classList.remove('hidden');
+  }
 }
 
 function showError(title, message) {
@@ -540,36 +412,12 @@ DOM.btnReset.addEventListener('click', () => {
 });
 
 // Hata: tekrar dene
-DOM.btnRetry.addEventListener('click', () => {
-  DOM.errorCard.classList.add('hidden');
-  if (state.currentImage) analyzeImage();
-});
-
-/* ============================================================
-   TAKİBE EKLE
-============================================================ */
-DOM.btnAddToTracker.addEventListener('click', () => {
-  if (!state.currentResult) return;
-
-  const entry = {
-    id: Date.now(),
-    name: state.currentResult.foodName,
-    icon: state.currentResult.icon || '🍽️',
-    calories: state.currentResult.calories,
-    protein: state.currentResult.protein,
-    carbs: state.currentResult.carbs,
-    fat: state.currentResult.fat,
-    time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-  };
-
-  state.todayLog.push(entry);
-  saveTodayLog();
-  renderTrackerPanel();
-  showToast(`${entry.name} takibe eklendi! (${entry.calories} kcal)`);
-
-  // Tracker sekmesine geç
-  setTimeout(() => switchTab('tracker'), 800);
-});
+if (DOM.btnRetry) {
+  DOM.btnRetry.addEventListener('click', () => {
+    DOM.errorCard.classList.add('hidden');
+    if (state.currentImage) analyzeImage();
+  });
+}
 
 /* ============================================================
    TAKİP PANELİ
