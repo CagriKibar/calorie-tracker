@@ -335,13 +335,13 @@ async function analyzeImage() {
       imgEl.onerror = reject;
     });
 
-    // 2. Ön İşleme (Preprocessing): 224x224 boyutlandırma ve normalizasyon [0,1]
+    // 2. Ön İşleme (Preprocessing): 224x224 boyutlandırma ve normalizasyon [-1, 1]
+    // AIY modelleri genellikle (-1, 1) arası normalizasyon bekler: (pixel / 127.5) - 1
     const tensor = tf.tidy(() => {
-      return tf.browser.fromPixels(imgEl)
+      const img = tf.browser.fromPixels(imgEl)
         .resizeNearestNeighbor([224, 224])
-        .toFloat()
-        .div(tf.scalar(255))
-        .expandDims();
+        .toFloat();
+      return img.sub(tf.scalar(127.5)).div(tf.scalar(127.5)).expandDims();
     });
 
     // 3. Tahmin (Inference)
@@ -377,8 +377,8 @@ function showResults(predictions) {
   }
 
   const topPrediction = predictions[0];
-  // Bu özel modelde eşik değerini 0.60 civarı tutmak daha sağlıklı (2000+ sınıf olduğu için dağılım geniştir)
-  const isHighConfidence = topPrediction.probability > 0.60;
+  // Bu özel modelde eşik değerini 0.40 civarı tutmak daha sağlıklı (2000+ sınıf olduğu için dağılım geniştir)
+  const isHighConfidence = topPrediction.probability > 0.40;
 
   if (isHighConfidence) {
     const searchTerm = topPrediction.className;
