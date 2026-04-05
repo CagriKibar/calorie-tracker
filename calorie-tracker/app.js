@@ -278,20 +278,39 @@ DOM.btnCapture.addEventListener('click', () => {
   closeCameraModal();
 });
 /* ============================================================
-   ANALİZ BUTONU (MobileNet)
+   GÜÇLÜ YEMEK TANIMA MOTORU (Google AIY Food Classifier)
 ============================================================ */
-DOM.btnAnalyze.addEventListener('click', analyzeImage);
+let foodModel = null;
+let foodLabels = [];
 
-let mobilenetModel = null;
-async function loadMobileNet() {
-  if (mobilenetModel) return;
+async function loadFoodModel() {
+  if (foodModel) return;
   try {
-    mobilenetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
-    console.log("MobileNet yüklendi!");
+    // 1. Modeli TFHub üzerinden yükle (GraphModel)
+    const modelUrl = 'https://tfhub.dev/google/tfjs-model/food/classifier/1/default/1';
+    foodModel = await tf.loadGraphModel(modelUrl, { fromTFHub: true });
+    
+    // 2. Etiket haritasını yükle (CSV)
+    const labelUrl = 'https://www.gstatic.com/aihub/tfhub/labelmaps/aiy_food_V1_labelmap.csv';
+    const response = await fetch(labelUrl);
+    const csvData = await response.text();
+    
+    // CSV'den isimleri çıkar (İlk satır başlık: "id,name")
+    foodLabels = csvData.split('\n')
+      .slice(1)
+      .map(line => {
+        const parts = line.split(',');
+        return parts.length > 1 ? parts[1].trim() : '';
+      })
+      .filter(name => name !== '');
+
+    console.log("Güçlü Yemek Modeli ve 2024 etiket yüklendi!");
   } catch (err) {
-    console.error("MobileNet hata: ", err);
+    console.error("Model yükleme hatası: ", err);
   }
 }
+
+DOM.btnAnalyze.addEventListener('click', analyzeImage);
 
 async function analyzeImage() {
   if (!state.currentImage) return;
@@ -301,11 +320,14 @@ async function analyzeImage() {
   DOM.btnAnalyze.disabled = true;
 
   try {
-    if (!mobilenetModel) {
-      await loadMobileNet();
+    if (!foodModel) {
+      await loadFoodModel();
     }
-    if (!mobilenetModel) throw new Error("Yapay zeka modeli yüklenemedi.");
+    if (!foodModel || foodLabels.length === 0) {
+      throw new Error("Yapay zeka modeli veya etiket listesi yüklenemedi.");
+    }
 
+    // 1. Resmi yükle ve Tensor'a çevir
     const imgEl = new Image();
     imgEl.src = state.currentImage;
     await new Promise((resolve, reject) => {
@@ -313,8 +335,33 @@ async function analyzeImage() {
       imgEl.onerror = reject;
     });
 
-    const predictions = await mobilenetModel.classify(imgEl);
-    showResults(predictions);
+    // 2. Ön İşleme (Preprocessing): 224x224 boyutlandırma ve normalizasyon [0,1]
+    const tensor = tf.tidy(() => {
+      return tf.browser.fromPixels(imgEl)
+        .resizeNearestNeighbor([224, 224])
+        .toFloat()
+        .div(tf.scalar(255))
+        .expandDims();
+    });
+
+    // 3. Tahmin (Inference)
+    const predictions = await foodModel.predict(tensor);
+    const probabilities = await predictions.data();
+    tensor.dispose();
+    predictions.dispose();
+
+    // 4. En yüksek olasılıklı 5 sonucu bul
+    const topIndices = Array.from(probabilities)
+      .map((p, i) => ({ probability: p, index: i }))
+      .sort((a, b) => b.probability - a.probability)
+      .slice(0, 5);
+
+    const mappedResults = topIndices.map(res => ({
+      className: foodLabels[res.index] || 'Bilinmeyen Yiyecek',
+      probability: res.probability
+    }));
+
+    showResults(mappedResults);
   } catch (err) {
     showError('Analiz başarısız', err.message || 'Lütfen tekrar deneyin.');
   } finally {
@@ -325,15 +372,16 @@ async function analyzeImage() {
 
 function showResults(predictions) {
   if (!predictions || predictions.length === 0) {
-    showError('Tahmin Hatası', 'Görselde herhangi bir nesne algılanamadı.');
+    showError('Tahmin Hatası', 'Görselde herhangi bir yiyecek algılanamadı.');
     return;
   }
 
   const topPrediction = predictions[0];
-  const isHighConfidence = topPrediction.probability > 0.85;
+  // Bu özel modelde eşik değerini 0.60 civarı tutmak daha sağlıklı (2000+ sınıf olduğu için dağılım geniştir)
+  const isHighConfidence = topPrediction.probability > 0.60;
 
   if (isHighConfidence) {
-    const searchTerm = topPrediction.className.split(',')[0];
+    const searchTerm = topPrediction.className;
     showToast(`%${Math.round(topPrediction.probability * 100)} güvenle algılandı: ${searchTerm}`);
     if (DOM.searchInput) DOM.searchInput.value = searchTerm;
     fetchCatalogFromAPI(searchTerm);
@@ -342,10 +390,9 @@ function showResults(predictions) {
     DOM.confidenceBadge.textContent = 'Tahmin (%' + Math.round(topPrediction.probability * 100) + ' güven)';
     DOM.confidenceBadge.className = 'confidence-badge medium';
     
-    // Stabil predictionButtons
     DOM.predictionButtons.innerHTML = '';
-    predictions.slice(0, 5).forEach(pred => {
-      const term = pred.className.split(',')[0];
+    predictions.forEach(pred => {
+      const term = pred.className;
       const prob = Math.round(pred.probability * 100);
       
       const btn = document.createElement('button');
