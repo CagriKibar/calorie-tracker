@@ -2,261 +2,156 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kalori Takip - Görselden Analiz</title>
-  <link rel="stylesheet" href="style.css?v=3.2" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CaloriLens Pro - Türk Mutfağı & AI</title>
+  <link rel="stylesheet" href="style.css?v=4.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header class="app-header">
-    <div class="header-inner">
-      <div class="logo">
-        <span class="logo-icon">🥗</span>
-        <span class="logo-text">KaloriLens</span>
-      </div>
-      <nav class="header-nav">
-        <button class="nav-btn active" data-tab="analyze">Analiz Et</button>
-        <button class="nav-btn" data-tab="catalog">Yemek Kataloğu</button>
-        <button class="nav-btn" data-tab="tracker">Takip Paneli</button>
-      </nav>
-    </div>
+  <!-- PRO HEADER -->
+  <header style="padding: 24px 20px 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 1.6rem; letter-spacing: -2px;">
+      <span style="color: var(--primary);">Calori</span>Lens <span class="chip" style="vertical-align: middle; margin-top: -4px;">PRO</span>
+    </h1>
   </header>
 
-  <main class="app-main">
-
+  <main>
     <!-- ============================================================
-         TAB 1: ANALIZ
+         TAB 1: ANALİZ (AI)
     ============================================================ -->
     <section class="tab-section active" id="tab-analyze">
+      <div class="glass-card">
+        <h2 style="margin-top: 0;">AI Analiz</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Yemeğini fotoğrafla, AI Türk mutfağında karşılığını bulsun.</p>
 
-      <!-- Upload Card -->
-      <div class="card upload-card">
-        <h2 class="card-title">Yemeğini Fotoğrafla</h2>
-        <p class="card-subtitle">Kamerandan çek veya galerinden yükle, yapay zeka anında analiz etsin.</p>
-
-        <div class="upload-area" id="uploadArea">
-          <div class="upload-placeholder" id="uploadPlaceholder">
-            <div class="upload-icon">📷</div>
-            <p class="upload-hint">Görsel yüklemek için tıkla</p>
-            <p class="upload-hint-sub">veya sürükle & bırak</p>
+        <div class="upload-zone" id="btnUploadTrigger">
+          <div id="uploadIndicator">
+            <div style="font-size: 3rem; margin-bottom: 10px;">📸</div>
+            <p style="margin: 0; font-weight: 600;">Görsel Yükle</p>
+            <p style="margin: 4px 0; font-size: 0.8rem; color: var(--text-muted);">Kamera veya Galeri</p>
           </div>
-          <img id="previewImg" class="preview-image hidden" alt="Yüklenen görsel önizlemesi" />
+          <img id="previewImg" class="preview-image hidden" />
         </div>
 
-        <div class="upload-actions">
-          <button class="btn btn-secondary" id="btnCamera">
-            <span class="btn-icon">📸</span> Kamera
-          </button>
-          <button class="btn btn-secondary" id="btnGallery">
-            <span class="btn-icon">🖼️</span> Galeri
-          </button>
-          <button class="btn btn-primary" id="btnAnalyze" disabled>
-            <span class="btn-icon">🔍</span> Analiz Et
-          </button>
+        <div id="analyzeAction" class="hidden" style="margin-top: 20px;">
+          <button class="btn" id="btnRunAnalyze">🚀 Analiz Et</button>
         </div>
 
-        <!-- Hidden inputs -->
-        <input type="file" id="fileInputGallery" accept="image/*" class="hidden" />
-        <input type="file" id="fileInputCamera" accept="image/*" capture="environment" class="hidden" />
+        <input type="file" id="fileInput" accept="image/*" class="hidden" />
       </div>
 
-
-
-      <!-- Loading Spinner -->
-      <div class="loading-card hidden" id="loadingCard">
-        <div class="spinner"></div>
-        <p class="loading-text">Yapay zeka analiz ediyor<span class="dots">...</span></p>
+      <!-- Loading -->
+      <div class="glass-card hidden" id="loadingCard" style="text-align: center;">
+        <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+        <p>Yapay zeka analiz ediyor...</p>
       </div>
 
-      <!-- Results Card -->
-      <div class="card results-card hidden" id="resultsCard">
-        <div class="results-header">
-          <h2 class="card-title">Yapay Zeka Tahminleri</h2>
-          <span class="confidence-badge" id="confidenceBadge">Tahmin</span>
-        </div>
-
-        <p class="detected-food" id="detectedFood" style="margin-top: 10px; font-size: 0.95rem; color: var(--text-muted);">
-          Görünüşe göre aşağıdaki seçeneklerden biri olabilir. Doğru olanı seçip onaylayın:
-        </p>
-
-        <div id="predictionButtons" class="prediction-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
-          <!-- JS ile doldurulacak -->
-        </div>
-
-        <div class="results-actions">
-          <button class="btn btn-secondary full-width" id="btnReset">
-            <span class="btn-icon">🔄</span> Yeni Analiz
-          </button>
-        </div>
-      </div>
-
-      <!-- Error Card -->
-      <div class="card error-card hidden" id="errorCard">
-        <div class="error-icon">⚠️</div>
-        <h3 id="errorTitle">Bir hata oluştu</h3>
-        <p id="errorMessage">Lütfen tekrar deneyin.</p>
-        <button class="btn btn-secondary" id="btnRetry">Tekrar Dene</button>
-      </div>
-
-    </section>
-
-    <!-- ============================================================
-         TAB 2: YEMEK KATALOĞU
-    ============================================================ -->
-    <section class="tab-section hidden" id="tab-catalog">
-      <div class="card catalog-card">
-        <div class="catalog-header">
-          <h2 class="card-title">Yemek Kataloğu</h2>
-          <p class="card-subtitle">İnternetten hazır yemek verileri</p>
-        </div>
-        
-        <div class="search-container">
-          <span class="search-icon">🔍</span>
-          <input type="text" id="searchInput" class="search-input" placeholder="Yemek ara (örn: Pizza, Chicken)..." />
-        </div>
-        
-        <div id="catalogLoading" class="catalog-loading">
-          <div class="spinner"></div>
-          <p>Katalog yükleniyor...</p>
-        </div>
-        
-        <div id="catalogError" class="catalog-error hidden">
-          <div class="error-icon">⚠️</div>
-          <p>Veri çekilemedi. Tekrar deneyiniz.</p>
-          <button class="btn btn-secondary btn-sm" id="btnRetryCatalog">Tekrar Dene</button>
-        </div>
-        
-        <div id="catalogGrid" class="catalog-grid hidden">
-          <!-- JS ile doldurulacak -->
+      <!-- Results -->
+      <div id="resultsArea" class="hidden">
+        <div class="glass-card">
+          <h3 style="margin-top: 0;">Eşleşen Türk Yemekleri</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">Bulunan sonuçlardan doğru olanı seçin:</p>
+          <div id="predictionList" style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+            <!-- JS ile dolacak -->
+          </div>
+          <button class="btn btn-secondary" id="btnResetAnalyze" style="margin-top: 20px;">🔄 Yeniden Tanımla</button>
         </div>
       </div>
     </section>
 
     <!-- ============================================================
-         TAB 3: TAKİP PANELİ
+         TAB 2: BARKOD
     ============================================================ -->
-    <section class="tab-section hidden" id="tab-tracker">
-
-      <!-- Goals Card -->
-      <div class="card goals-card">
-        <h2 class="card-title">Günlük Hedeflerim</h2>
-        <div class="goals-form">
-          <div class="goal-input-group">
-            <label>Kalori (kcal)</label>
-            <input type="number" id="goalCalories" class="goal-input" placeholder="2000" min="500" max="10000" />
-          </div>
-          <div class="goal-input-group">
-            <label>Protein (g)</label>
-            <input type="number" id="goalProtein" class="goal-input" placeholder="150" min="0" max="500" />
-          </div>
-          <div class="goal-input-group">
-            <label>Karbonhidrat (g)</label>
-            <input type="number" id="goalCarbs" class="goal-input" placeholder="250" min="0" max="1000" />
-          </div>
-          <div class="goal-input-group">
-            <label>Yağ (g)</label>
-            <input type="number" id="goalFat" class="goal-input" placeholder="65" min="0" max="500" />
-          </div>
-        </div>
-        <button class="btn btn-primary full-width" id="btnSaveGoals">
-          <span class="btn-icon">💾</span> Hedefleri Kaydet
-        </button>
-      </div>
-
-      <!-- Today's Summary -->
-      <div class="card summary-card">
-        <div class="summary-header">
-          <h2 class="card-title">Bugünkü Özet</h2>
-          <span class="date-label" id="todayDate"></span>
+    <section class="tab-section" id="tab-barcode">
+      <div class="glass-card">
+        <h2 style="margin-top: 0;">Barkod Tara</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Paketli ürünlerin besin değerlerini anında çekin.</p>
+        
+        <div id="barcodeReader" style="margin-top: 20px; border-radius: 20px; overflow: hidden; background: rgba(0,0,0,0.3); min-height: 200px; display: flex; align-items: center; justify-content: center;">
+           <button class="btn" id="btnStartBarcode">📷 Kamerayı Başlat</button>
         </div>
 
-        <!-- Calorie Ring -->
-        <div class="ring-container">
-          <svg class="ring-svg" viewBox="0 0 120 120">
-            <circle class="ring-bg" cx="60" cy="60" r="52" />
-            <circle class="ring-progress" id="calorieRing" cx="60" cy="60" r="52"
-              stroke-dasharray="326.7"
-              stroke-dashoffset="326.7" />
-          </svg>
-          <div class="ring-label">
-            <div class="ring-consumed" id="ringConsumed">0</div>
-            <div class="ring-unit">kcal</div>
-            <div class="ring-remaining" id="ringRemaining">Hedef yok</div>
-          </div>
-        </div>
-
-        <!-- Macro Progress Bars -->
-        <div class="macro-progress-section">
-          <div class="macro-progress-item">
-            <div class="mp-labels">
-              <span class="mp-name">Protein</span>
-              <span class="mp-values"><span id="consumedProtein">0</span>g / <span id="goalProteinDisplay">--</span>g</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill protein-fill" id="progressProtein"></div>
-            </div>
-          </div>
-          <div class="macro-progress-item">
-            <div class="mp-labels">
-              <span class="mp-name">Karbonhidrat</span>
-              <span class="mp-values"><span id="consumedCarbs">0</span>g / <span id="goalCarbsDisplay">--</span>g</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill carbs-fill" id="progressCarbs"></div>
-            </div>
-          </div>
-          <div class="macro-progress-item">
-            <div class="mp-labels">
-              <span class="mp-name">Yağ</span>
-              <span class="mp-values"><span id="consumedFat">0</span>g / <span id="goalFatDisplay">--</span>g</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill fat-fill" id="progressFat"></div>
-            </div>
-          </div>
+        <div id="barcodeResult" class="hidden" style="margin-top: 20px;">
+          <!-- JS ile dolacak -->
         </div>
       </div>
-
-      <!-- Food Log -->
-      <div class="card log-card">
-        <div class="log-header">
-          <h2 class="card-title">Günlük Öğünler</h2>
-          <button class="btn btn-sm btn-danger" id="btnClearLog">Temizle</button>
-        </div>
-        <div id="foodLogList" class="food-log-list">
-          <p class="empty-log" id="emptyLogMsg">Henüz öğün eklenmedi. Analiz sekmesinden yemek ekleyebilirsin.</p>
-        </div>
-      </div>
-
     </section>
 
+    <!-- ============================================================
+         TAB 3: KATALOG
+    ============================================================ -->
+    <section class="tab-section" id="tab-catalog">
+      <div class="glass-card" style="padding: 16px; border-radius: 50px;">
+        <input type="text" id="catalogSearch" placeholder="Yemek ismi ara..." style="background: none; border: none; color: white; width: 100%; padding: 8px 16px; font-size: 1rem; outline: none;" />
+      </div>
+      
+      <div id="catalogList" style="margin-top: 16px;">
+        <!-- JS ile dolacak -->
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TAB 4: TAKİP (GÜNLÜK)
+    ============================================================ -->
+    <section class="tab-section" id="tab-tracker">
+      <div class="glass-card" style="text-align: center;">
+        <h2 style="margin-top: 0;">Bugün</h2>
+        <h1 id="totalCalories" style="font-size: 3.5rem; margin: 10px 0; font-family: 'Inter';">0</h1>
+        <p style="color: var(--text-muted); margin-top: -10px;">toplam kcal</p>
+        
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-val" id="totalProtein">0g</span>
+            <span class="stat-lbl">Protein</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="totalCarbs">0g</span>
+            <span class="stat-lbl">Karb</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-val" id="totalFat">0g</span>
+            <span class="stat-lbl">Yağ</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="dailyLog" style="margin-top: 20px;">
+        <!-- JS ile dolacak -->
+      </div>
+      <button class="btn btn-secondary" id="btnClearLogs" style="margin-top: 20px; background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">🗑️ Kayıtları Temizle</button>
+    </section>
   </main>
 
-  <!-- Toast Notification -->
-  <div class="toast hidden" id="toast">
-    <span id="toastMessage"></span>
-  </div>
+  <!-- BOTTOM HUD NAVIGATION -->
+  <nav class="hud-nav">
+    <button class="nav-item active" data-tab="analyze">
+      <div style="font-size: 1.4rem;">🔍</div>
+      <span class="nav-label">Analiz</span>
+    </button>
+    <button class="nav-item" data-tab="barcode">
+      <div style="font-size: 1.4rem;">📷</div>
+      <span class="nav-label">Barkod</span>
+    </button>
+    <button class="nav-item" data-tab="catalog">
+      <div style="font-size: 1.4rem;">📖</div>
+      <span class="nav-label">Katalog</span>
+    </button>
+    <button class="nav-item" data-tab="tracker">
+      <div style="font-size: 1.4rem;">📈</div>
+      <span class="nav-label">Özet</span>
+    </button>
+  </nav>
 
-  <!-- Camera Modal -->
-  <div class="modal hidden" id="cameraModal">
-    <div class="modal-overlay" id="modalOverlay"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Fotoğraf Çek</h3>
-        <button class="modal-close" id="btnCloseCamera">✕</button>
-      </div>
-      <video id="cameraFeed" autoplay playsinline class="camera-feed"></video>
-      <canvas id="cameraCanvas" class="hidden"></canvas>
-      <div class="modal-actions">
-        <button class="btn btn-primary full-width" id="btnCapture">📸 Fotoğraf Çek</button>
-      </div>
-    </div>
-  </div>
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 
+  <!-- LIBRARIES -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-  <script src="app.js?v=3.2"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+  <script src="app.js?v=4.0"></script>
 </body>
 </html>
