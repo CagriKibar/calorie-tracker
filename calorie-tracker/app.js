@@ -278,29 +278,6 @@ DOM.btnCapture.addEventListener('click', () => {
   closeCameraModal();
 });
 
-/* ============================================================
-   ANALİZ BUTONU
-============================================================ */
-DOM.btnAnalyze.addEventListener('click', analyzeImage);
-
-async function analyzeImage() {
-  if (!state.currentImage) return;
-
-  hideResultCards();
-  DOM.loadingCard.classList.remove('hidden');
-  DOM.btnAnalyze.disabled = true;
-
-  try {
-    const result = await callVisionAPI(state.currentImage);
-    state.currentResult = result;
-    showResults(result);
-  } catch (err) {
-    showError('Analiz başarısız', err.message || 'Lütfen API anahtarınızı kontrol edip tekrar deneyin.');
-  } finally {
-    DOM.loadingCard.classList.add('hidden');
-    DOM.btnAnalyze.disabled = false;
-  }
-}
 
 /* ============================================================
    ANALİZ BUTONU (MobileNet)
@@ -554,33 +531,6 @@ DOM.btnSaveGoals.addEventListener('click', () => {
   showToast('Hedefler kaydedildi!');
 });
 
-/* ============================================================
-   API AYARLARI
-============================================================ */
-DOM.apiCardToggle.addEventListener('click', () => {
-  const isOpen = !DOM.apiCardBody.classList.contains('hidden');
-  DOM.apiCardBody.classList.toggle('hidden', isOpen);
-  DOM.toggleIcon.classList.toggle('open', !isOpen);
-});
-
-DOM.btnSaveKey.addEventListener('click', () => {
-  const key = DOM.apiKeyInput.value.trim();
-  if (!key) {
-    showToast('API anahtarı boş olamaz.');
-    return;
-  }
-  saveApiKey(key);
-  DOM.apiKeyInput.value = '';
-  showToast('API anahtarı kaydedildi!');
-});
-
-// Kayıtlı anahtar varsa, input'a yıldız göster
-function loadSavedApiKeyHint() {
-  const key = getApiKey();
-  if (key) {
-    DOM.apiKeyInput.placeholder = '••••••••••••••••••••••• (kayıtlı)';
-  }
-}
 
 /* ============================================================
    TOAST BİLDİRİMİ
