@@ -16,6 +16,7 @@
 const state = {
   currentImage: null,      // base64 encoded current image
   currentResult: null,     // last analysis result
+  catalog: [],             // fetched from dummyjson
   goals: {
     calories: 2000,
     protein: 150,
@@ -36,6 +37,14 @@ const DOM = {
   navBtns: document.querySelectorAll('.nav-btn'),
   tabAnalyze: $('tab-analyze'),
   tabTracker: $('tab-tracker'),
+  tabCatalog: $('tab-catalog'),
+
+  // Catalog
+  catalogGrid: $('catalogGrid'),
+  catalogLoading: $('catalogLoading'),
+  catalogError: $('catalogError'),
+  searchInput: $('searchInput'),
+  btnRetryCatalog: $('btnRetryCatalog'),
 
   // Upload
   uploadArea: $('uploadArea'),
@@ -166,10 +175,14 @@ function switchTab(tabName) {
   });
   DOM.tabAnalyze.classList.toggle('active', tabName === 'analyze');
   DOM.tabTracker.classList.toggle('active', tabName === 'tracker');
+  if (DOM.tabCatalog) DOM.tabCatalog.classList.toggle('active', tabName === 'catalog');
+
   DOM.tabAnalyze.classList.toggle('hidden', tabName !== 'analyze');
   DOM.tabTracker.classList.toggle('hidden', tabName !== 'tracker');
+  if (DOM.tabCatalog) DOM.tabCatalog.classList.toggle('hidden', tabName !== 'catalog');
 
   if (tabName === 'tracker') renderTrackerPanel();
+  if (tabName === 'catalog' && state.catalog.length === 0) fetchCatalogFromAPI();
 }
 
 DOM.navBtns.forEach((btn) => {
@@ -769,6 +782,122 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.appendChild(document.createTextNode(String(str)));
   return div.innerHTML;
+}
+
+/* ============================================================
+   YEMEK KATALOĞU (OPEN FOOD FACTS) LİSTELEME
+============================================================ */
+let catalogSearchTimeout = null;
+
+async function fetchCatalogFromAPI(query = 'pizza') {
+  if (!DOM.tabCatalog) return;
+  DOM.catalogLoading.classList.remove('hidden');
+  DOM.catalogGrid.classList.add('hidden');
+  DOM.catalogError.classList.add('hidden');
+
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=40`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Network error');
+    const data = await res.json();
+    
+    const products = data.products || [];
+    state.catalog = products.map(p => {
+      const name = p.product_name || p.product_name_fr || p.generic_name || 'İsimsiz Ürün';
+      // Fallback image using a simple SVG data URI
+      const image = p.image_url || p.image_front_small_url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="%23f3f4f6"><rect width="200" height="200"/><text x="50%" y="50%" fill="%239ca3af" font-family="sans-serif" font-size="20" text-anchor="middle" dominant-baseline="middle">Görsel Yok</text></svg>';
+      const n = p.nutriments || {};
+      
+      const calories = Math.round(n['energy-kcal_100g'] || n['energy-kcal_serving'] || n['energy-kcal'] || 0);
+      const protein = Math.round(n.proteins_100g || 0);
+      const carbs = Math.round(n.carbohydrates_100g || 0);
+      const fat = Math.round(n.fat_100g || 0);
+
+      return {
+        id: `off_${p._id}`,
+        name: name,
+        image: image,
+        calories: calories,
+        protein: protein,
+        carbs: carbs,
+        fat: fat
+      };
+    }).filter(item => item.calories > 0); // Hide totally empty/unknown items
+
+    renderCatalog(state.catalog);
+  } catch (err) {
+    DOM.catalogLoading.classList.add('hidden');
+    DOM.catalogError.classList.remove('hidden');
+  }
+}
+
+function renderCatalog(items) {
+  DOM.catalogLoading.classList.add('hidden');
+  DOM.catalogError.classList.add('hidden');
+  DOM.catalogGrid.classList.remove('hidden');
+  DOM.catalogGrid.innerHTML = '';
+
+  if (items.length === 0) {
+    DOM.catalogGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color: var(--text-muted);">Sonuç bulunamadı.</p>';
+    return;
+  }
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'food-card';
+    card.innerHTML = `
+      <div class="food-card-img-wrapper">
+        <img src="${item.image}" alt="${escapeHtml(item.name)}" class="food-card-img" loading="lazy" />
+      </div>
+      <div class="food-card-info">
+        <div class="food-card-title">${escapeHtml(item.name)}</div>
+        <div class="food-card-cal">${item.calories} kcal / 100g</div>
+      </div>
+      <button class="food-card-btn" aria-label="Takibe Ekle">Takibe Ekle ➕</button>
+    `;
+    
+    card.addEventListener('click', () => addCatalogItemToTracker(item));
+    DOM.catalogGrid.appendChild(card);
+  });
+}
+
+function addCatalogItemToTracker(item) {
+  const entry = {
+    id: Date.now(),
+    name: item.name,
+    icon: '🍽️',
+    calories: item.calories,
+    protein: item.protein,
+    carbs: item.carbs,
+    fat: item.fat,
+    time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+  };
+
+  state.todayLog.push(entry);
+  saveTodayLog();
+  renderTrackerPanel();
+  showToast(`${entry.name} takibe eklendi!`);
+  
+  setTimeout(() => switchTab('tracker'), 600);
+}
+
+if (DOM.searchInput) {
+  DOM.searchInput.addEventListener('input', (e) => {
+    const term = e.target.value.trim();
+    if (catalogSearchTimeout) clearTimeout(catalogSearchTimeout);
+    
+    // Debounce for 500ms before making an API call
+    catalogSearchTimeout = setTimeout(() => {
+      fetchCatalogFromAPI(term || 'snack');
+    }, 500);
+  });
+}
+
+if (DOM.btnRetryCatalog) {
+  DOM.btnRetryCatalog.addEventListener('click', () => {
+    const term = DOM.searchInput ? DOM.searchInput.value.trim() : '';
+    fetchCatalogFromAPI(term || 'pizza');
+  });
 }
 
 /* ============================================================

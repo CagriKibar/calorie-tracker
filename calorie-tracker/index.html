@@ -19,6 +19,7 @@
       </div>
       <nav class="header-nav">
         <button class="nav-btn active" data-tab="analyze">Analiz Et</button>
+        <button class="nav-btn" data-tab="catalog">Yemek Kataloğu</button>
         <button class="nav-btn" data-tab="tracker">Takip Paneli</button>
       </nav>
     </div>
@@ -161,7 +162,39 @@
     </section>
 
     <!-- ============================================================
-         TAB 2: TAKİP PANELİ
+         TAB 2: YEMEK KATALOĞU
+    ============================================================ -->
+    <section class="tab-section hidden" id="tab-catalog">
+      <div class="card catalog-card">
+        <div class="catalog-header">
+          <h2 class="card-title">Yemek Kataloğu</h2>
+          <p class="card-subtitle">İnternetten hazır yemek verileri</p>
+        </div>
+        
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" class="search-input" placeholder="Yemek ara (örn: Pizza, Chicken)..." />
+        </div>
+        
+        <div id="catalogLoading" class="catalog-loading">
+          <div class="spinner"></div>
+          <p>Katalog yükleniyor...</p>
+        </div>
+        
+        <div id="catalogError" class="catalog-error hidden">
+          <div class="error-icon">⚠️</div>
+          <p>Veri çekilemedi. Tekrar deneyiniz.</p>
+          <button class="btn btn-secondary btn-sm" id="btnRetryCatalog">Tekrar Dene</button>
+        </div>
+        
+        <div id="catalogGrid" class="catalog-grid hidden">
+          <!-- JS ile doldurulacak -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TAB 3: TAKİP PANELİ
     ============================================================ -->
     <section class="tab-section hidden" id="tab-tracker">
 
