@@ -56,13 +56,6 @@ const DOM = {
   btnGallery: $('btnGallery'),
   btnAnalyze: $('btnAnalyze'),
 
-  // API Config
-  apiCardToggle: $('apiCardToggle'),
-  apiCardBody: $('apiCardBody'),
-  toggleIcon: document.querySelector('.toggle-icon'),
-  apiKeyInput: $('apiKeyInput'),
-  btnSaveKey: $('btnSaveKey'),
-
   // States
   loadingCard: $('loadingCard'),
   resultsCard: $('resultsCard'),
@@ -70,16 +63,8 @@ const DOM = {
 
   // Results
   detectedFood: $('detectedFood'),
-  totalCalories: $('totalCalories'),
   confidenceBadge: $('confidenceBadge'),
-  macroProtein: $('macroProtein'),
-  macroCarbs: $('macroCarbs'),
-  macroFat: $('macroFat'),
-  barProtein: $('barProtein'),
-  barCarbs: $('barCarbs'),
-  barFat: $('barFat'),
-  nutritionTableBody: $('nutritionTableBody'),
-  btnAddToTracker: $('btnAddToTracker'),
+  predictionButtons: $('predictionButtons'),
   btnReset: $('btnReset'),
 
   // Error
@@ -158,13 +143,7 @@ function loadTodayLog() {
   }
 }
 
-function getApiKey() {
-  return localStorage.getItem(LS_API_KEY) || '';
-}
 
-function saveApiKey(key) {
-  localStorage.setItem(LS_API_KEY, key.trim());
-}
 
 /* ============================================================
    TAB NAVİGASYON
@@ -911,7 +890,6 @@ function init() {
   // localStorage'dan yükle
   loadGoals();
   loadTodayLog();
-  loadSavedApiKeyHint();
 
   // İlk render
   renderTrackerPanel();

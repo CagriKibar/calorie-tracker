@@ -63,29 +63,7 @@
         <input type="file" id="fileInputCamera" accept="image/*" capture="environment" class="hidden" />
       </div>
 
-      <!-- API Key Config Card -->
-      <div class="card api-card" id="apiConfigCard">
-        <div class="api-card-header" id="apiCardToggle">
-          <span>⚙️ API Ayarları</span>
-          <span class="toggle-icon">▼</span>
-        </div>
-        <div class="api-card-body hidden" id="apiCardBody">
-          <p class="api-info">
-            Bu uygulama OpenAI GPT-4o Vision API kullanır. Kendi API anahtarınızı girin
-            (tarayıcınızda localStorage'da saklanır, sunucuya gönderilmez).
-          </p>
-          <div class="form-group">
-            <label for="apiKeyInput">OpenAI API Anahtarı</label>
-            <div class="input-row">
-              <input type="password" id="apiKeyInput" placeholder="sk-..." class="form-input" />
-              <button class="btn btn-sm btn-secondary" id="btnSaveKey">Kaydet</button>
-            </div>
-          </div>
-          <p class="api-note">
-            API anahtarı yoksa, uygulama demo modda çalışır ve örnek veriler gösterir.
-          </p>
-        </div>
-      </div>
+
 
       <!-- Loading Spinner -->
       <div class="loading-card hidden" id="loadingCard">
@@ -96,56 +74,20 @@
       <!-- Results Card -->
       <div class="card results-card hidden" id="resultsCard">
         <div class="results-header">
-          <h2 class="card-title">Analiz Sonucu</h2>
-          <span class="confidence-badge" id="confidenceBadge">Yüksek Güven</span>
+          <h2 class="card-title">Yapay Zeka Tahminleri</h2>
+          <span class="confidence-badge" id="confidenceBadge">Tahmin</span>
         </div>
 
-        <p class="detected-food" id="detectedFood">Tespit edilen yemek</p>
+        <p class="detected-food" id="detectedFood" style="margin-top: 10px; font-size: 0.95rem; color: var(--text-muted);">
+          Görünüşe göre aşağıdaki seçeneklerden biri olabilir. Doğru olanı seçip onaylayın:
+        </p>
 
-        <!-- Calorie Big Number -->
-        <div class="calorie-hero">
-          <span class="calorie-number" id="totalCalories">0</span>
-          <span class="calorie-unit">kcal</span>
+        <div id="predictionButtons" class="prediction-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
+          <!-- JS ile doldurulacak -->
         </div>
-
-        <!-- Macro Table -->
-        <div class="macro-grid">
-          <div class="macro-item protein">
-            <div class="macro-label">Protein</div>
-            <div class="macro-value" id="macroProtein">0g</div>
-            <div class="macro-bar"><div class="macro-fill" id="barProtein"></div></div>
-          </div>
-          <div class="macro-item carbs">
-            <div class="macro-label">Karbonhidrat</div>
-            <div class="macro-value" id="macroCarbs">0g</div>
-            <div class="macro-bar"><div class="macro-fill" id="barCarbs"></div></div>
-          </div>
-          <div class="macro-item fat">
-            <div class="macro-label">Yağ</div>
-            <div class="macro-value" id="macroFat">0g</div>
-            <div class="macro-bar"><div class="macro-fill" id="barFat"></div></div>
-          </div>
-        </div>
-
-        <!-- Detail Table -->
-        <table class="nutrition-table">
-          <thead>
-            <tr>
-              <th>Besin Değeri</th>
-              <th>Miktar</th>
-              <th>% Günlük Değer*</th>
-            </tr>
-          </thead>
-          <tbody id="nutritionTableBody">
-          </tbody>
-        </table>
-        <p class="table-note">* Günlük değer, hedeflenen kalori miktarına göre hesaplanmıştır.</p>
 
         <div class="results-actions">
-          <button class="btn btn-primary" id="btnAddToTracker">
-            <span class="btn-icon">➕</span> Takibe Ekle
-          </button>
-          <button class="btn btn-secondary" id="btnReset">
+          <button class="btn btn-secondary full-width" id="btnReset">
             <span class="btn-icon">🔄</span> Yeni Analiz
           </button>
         </div>
@@ -314,6 +256,8 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
   <script src="app.js"></script>
 </body>
 </html>
